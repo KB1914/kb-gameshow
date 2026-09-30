@@ -23,7 +23,7 @@ header { display:flex; justify-content:space-between; align-items:center; gap:10
 .sc.me { border-color:var(--pink); }
 .sc.lead .n::before { content:"\2605 "; color:var(--gold); }
 .cam { position:relative; width:100%; aspect-ratio:4/3; background:#000; border-radius:14px; overflow:hidden; border:2px solid var(--line); transition:all .3s; }
-.cam.small { width:132px; aspect-ratio:4/3; align-self:flex-end; margin-top:-4px; }
+.cam.small { aspect-ratio:16/9; max-height:34vh; }
 .cam iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
 .camtip { color:var(--mut); font-size:13px; text-align:center; }
 #status { border-radius:14px; padding:12px; text-align:center; font-size:19px; font-weight:800; background:var(--card); border:3px solid var(--line); }
@@ -47,7 +47,7 @@ header { display:flex; justify-content:space-between; align-items:center; gap:10
 .wager input { flex:1; min-width:0; font:800 22px system-ui; padding:10px; border-radius:10px; border:2px solid var(--line); background:#0d0b1e; color:#fff; }
 .wager button { font:900 16px system-ui; padding:0 18px; border-radius:10px; border:0; background:var(--good); color:#062b19; }
 .hint { color:var(--mut); font-size:13px; margin-top:6px; }
-#buzz { flex:1; min-height:150px; border:0; border-radius:24px; font:900 clamp(48px,14vw,96px)/1 system-ui,sans-serif; letter-spacing:.06em; color:#fff;
+#buzz { flex:none; height:clamp(96px,16vh,150px); border:0; border-radius:24px; font:900 clamp(40px,11vw,72px)/1 system-ui,sans-serif; letter-spacing:.06em; color:#fff;
   background:radial-gradient(circle at 50% 35%, #ff6fe0, #c4009a 70%); box-shadow:0 10px 0 #7a0060, 0 16px 30px #0008; touch-action:manipulation; user-select:none; cursor:pointer; }
 #buzz:active, #buzz.hit { transform:translateY(8px); box-shadow:0 2px 0 #7a0060, 0 6px 14px #0008; }
 #buzz.armed { background:radial-gradient(circle at 50% 35%, #5bffb0, #12a35f 70%); box-shadow:0 10px 0 #0b6b3e, 0 16px 30px #0008; }
@@ -73,6 +73,12 @@ header { display:flex; justify-content:space-between; align-items:center; gap:10
     <div class="q" id="q"></div>
     <div class="ans" id="ans" hidden></div>
     <div class="bar" id="bar" hidden><i id="barfill"></i></div>
+  </div>
+  <div class="card" id="ddcard" hidden>
+    <h3><span>Your Daily Double</span><b id="ddcat"></b></h3>
+    <div class="q">How much do you want to wager?</div>
+    <div class="wager"><input id="ddv" type="number" inputmode="numeric" min="5" placeholder="5"><button id="ddsend" type="button">LOCK IN</button></div>
+    <div class="hint" id="ddhint"></div>
   </div>
   <div class="card" id="boardcard" hidden><h3><span>Board</span><span>what's left</span></h3><div class="board" id="board"></div></div>
   <div class="card" id="finalcard" hidden>
@@ -143,6 +149,18 @@ function render(vw, left) {
     $('q').textContent = c.q != null ? c.q : (c.dd ? (c.ddp === vw.me ? "It's your Daily Double. Chat is voting on double or steal..." : 'Daily Double. Chat is voting...') : '');
     $('ans').hidden = !c.a; $('ans').textContent = c.a ? 'Answer: ' + c.a : '';
   }
+  // Daily Double wager (only the player who picked it gets this)
+  const dw = vw.ddw; $('ddcard').hidden = !dw;
+  if (dw) {
+    $('ddcat').textContent = (c && c.cat) || '';
+    if (document.activeElement !== $('ddv')) $('ddhint').textContent = dw.wager != null
+      ? `Locked in: ${money(dw.wager)}. You can still change it until the host shows the clue.`
+      : `Wager $5 to ${money(dw.max)}. Only you answer this one, no buzzing.`;
+  }
+  if (c && c.dd) {
+    $('q').textContent = c.q != null ? c.q : (c.ddp === vw.me ? 'Your Daily Double! Enter your wager below.' : `${c.ddn || 'Another player'} is wagering...`);
+    $('val').textContent = c.wager != null ? money(c.wager) : '';
+  }
   // final
   const f = vw.final; $('finalcard').hidden = !f;
   if (f) {
@@ -160,7 +178,8 @@ function render(vw, left) {
   // buzz button only matters during a regular clue
   const buzzable = vw.ph === 'clue' || vw.ph === 'board';
   $('buzz').classList.toggle('off', !buzzable && !!f);
-  $('buzz').hidden = !!f; $('tip').hidden = !!f;
+  const noBuzz = !!f || !!(c && c.dd);
+  $('buzz').hidden = noBuzz; $('tip').hidden = noBuzz;
   // timer
   if (left != null) { timerEnd = Date.now() + left; timerTotal = Math.max(timerTotal && timerEnd > Date.now() ? timerTotal : 0, left); }
   else { timerEnd = 0; timerTotal = 0; }
@@ -174,6 +193,11 @@ function tick() {
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
+$('ddsend').addEventListener('click', () => {
+  const val = parseInt($('ddv').value, 10), max = lastView && lastView.ddw ? lastView.ddw.max : 0;
+  if (isNaN(val) || val < 5 || val > max) { $('ddhint').textContent = `Enter a number from $5 to ${money(max)}.`; return; }
+  send({ jq: 'wager', v: val }); $('ddhint').textContent = 'Sending...'; $('ddv').blur();
+});
 $('wsend').addEventListener('click', () => {
   const val = parseInt($('wv').value, 10);
   const max = lastView && lastView.final ? lastView.final.max : 0;

@@ -73,10 +73,13 @@ window.seatStatus = function (s, i, now) {
   if (ph === 'final_clue') return Object.assign(base, { state: 'waiting', text: 'Final Jeopardy: think it through' });
   if (ph === 'final_answer') return Object.assign(base, { state: 'waiting', text: 'Final Jeopardy: answers are in' });
   if (ph === 'scores') return Object.assign(base, { state: 'waiting', text: 'Scoreboard' });
-  if (ph === 'dd_vote' && c) return Object.assign(base, c.ddPlayer === i ? { state: 'up', text: 'Your Daily Double! Chat is voting' } : { state: 'locked', text: 'Daily Double for ' + ((s.players[c.ddPlayer] || {}).name || 'another player') });
+  const ddName = c && c.ddPlayer >= 0 ? (s.players[c.ddPlayer] || {}).name : null;
+  if (ph === 'dd_wager' && c) return Object.assign(base, c.ddPlayer === i
+    ? { state: 'up', text: c.wager != null ? 'Wager locked in. Get ready!' : 'Your Daily Double! Enter your wager' }
+    : { state: 'locked', text: ddName ? 'Daily Double: ' + ddName + ' is playing' : 'Daily Double' });
   if (ph === 'answer') return Object.assign(base, { state: 'waiting', text: 'Answer revealed. Next clue soon' });
   if (!c || ph !== 'clue') return Object.assign(base, { state: 'waiting', text: 'Board is up. Next clue coming' });
-  if (c.dd) return Object.assign(base, c.ddPlayer === i ? { state: 'up', text: "Daily Double. You're up!" } : { state: 'locked', text: 'Daily Double. Not your turn.' });
+  if (c.dd) return Object.assign(base, c.ddPlayer === i ? { state: 'up', text: "Daily Double. You're up!" } : { state: 'locked', text: 'Daily Double: ' + (ddName || 'another player') + ' is playing' });
   if ((c.attempted || []).includes(i)) return Object.assign(base, { state: 'out', text: 'You already answered this one' });
   if (s.active === i) return Object.assign(base, { state: 'up', text: "YOU'RE UP! Answer now." });
   if (s.active >= 0) return Object.assign(base, { state: 'locked', text: (s.players[s.active] || {}).name + ' is answering' });
@@ -99,11 +102,14 @@ window.playerView = function (s, i, now) {
   if (ph === 'board' && s.board) {
     v.board = { c: s.board.categories, v: s.board.values, used: s.used || [] };
   }
-  if (c && (ph === 'clue' || ph === 'answer' || ph === 'dd_vote')) {
-    v.clue = { cat: c.category, val: c.value, dd: !!c.dd, ddp: c.ddPlayer, mode: c.ddMode };
-    if (ph !== 'dd_vote') v.clue.q = c.q;
+  if (c && (ph === 'clue' || ph === 'answer' || ph === 'dd_wager')) {
+    v.clue = { cat: c.category, val: c.value, dd: !!c.dd, ddp: c.ddPlayer, ddn: c.ddPlayer >= 0 ? (s.players[c.ddPlayer] || {}).name : null, wager: c.wager };
+    if (ph !== 'dd_wager') v.clue.q = c.q;
     if (ph === 'clue' && c.endsAt) v.left = Math.max(0, c.endsAt - now);
-    if (ph === 'dd_vote' && s.vote && s.vote.endsAt) v.left = Math.max(0, s.vote.endsAt - now);
+    if (ph === 'dd_wager' && c.ddPlayer === i) {   // private wager box for the Daily Double player
+      const me = (s.players || [])[i] || {}, vals = (s.board && s.board.values) || [0];
+      v.ddw = { max: Math.max(me.score || 0, Math.max.apply(null, vals)), wager: c.wager };
+    }
     if (ph === 'answer') v.clue.a = c.a;
   }
   if (ph && ph.indexOf('final') === 0) {

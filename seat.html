@@ -25,14 +25,15 @@ function push(force) {
   const msg = JSON.stringify([st, view]);                        // timer countdown doesn't count as a change
   if (!force && msg === lastSent) return; lastSent = msg;
   const out = Object.assign({ jq: 'status', v: view }, st); if (left != null) out.left = left;
-  try { frame.contentWindow.postMessage({ sendData: out, type: 'pcs' }, '*'); } catch (e) {}
+  // viewer -> publisher must use 'rpcs' ('pcs' only reaches our own viewers; verified live)
+  try { frame.contentWindow.postMessage({ sendData: out, type: 'rpcs' }, '*'); } catch (e) {}
   dbg.textContent = `P${N}: ${st.state}`;
 }
 window.addEventListener('message', e => {
   if (e.source !== frame.contentWindow || !e.data) return;
   if (e.data.action && !/stats|mute-state|info|bitrate|resolution/.test(e.data.action)) ping('vdo ' + e.data.action + ' ' + JSON.stringify(e.data.value === undefined ? '' : e.data.value).slice(0, 60));
   const d = e.data.dataReceived;
-  if (d) ping('data ' + (d.jq || '?'));
+  if (d && d.jq !== 'hello') ping('data ' + (d.jq || '?'));
   if (d && d.jq === 'buzz') { JQ.send('buzz', { n: N }); dbg.textContent = `P${N}: BUZZ received`; }
   if (d && d.jq === 'hello') push(true);
   // Final Jeopardy wager typed privately on the guest's page (engine checks 0..score)

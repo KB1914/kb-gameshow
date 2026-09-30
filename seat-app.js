@@ -25,14 +25,16 @@ window.addEventListener('message', e => {
   if (e.source !== frame.contentWindow || !e.data) return;
   if (e.data.action && !/stats|mute-state|info|bitrate|resolution/.test(e.data.action)) ping('vdo ' + e.data.action + ' ' + JSON.stringify(e.data.value === undefined ? '' : e.data.value).slice(0, 60));
   const d = e.data.dataReceived;
-  if (d && d.jq !== 'hello') ping('data ' + (d.jq || '?'));
+  if (d && d.jq !== 'hello' && d.jq !== 'fanswer') ping('data ' + (d.jq || '?'));
   if (d && d.jq === 'buzz') { JQ.send('buzz', { n: N }); dbg.textContent = `P${N}: BUZZ received`; }
   if (d && d.jq === 'hello') push(true);
   // Daily Double / Final Jeopardy wager typed privately on the guest's page (engine checks 0..score)
   if (d && d.jq === 'wager' && JQ.state && (JQ.state.phase === 'final_cat' || JQ.state.phase === 'dd_wager')) { JQ.send('wager', { n: N, v: Math.max(0, parseInt(d.v, 10) || 0) }); setTimeout(() => push(true), 400); }
+  // Final Jeopardy written answer (saved as they type; engine locks it when the clock runs out)
+  if (d && d.jq === 'fanswer' && JQ.state && JQ.state.phase === 'final_clue') { JQ.send('finalanswer', { n: N, text: String(d.text || '').slice(0, 60) }); setTimeout(() => push(true), 300); }
   if (e.data.action === 'view-connection' || e.data.action === 'guest-connected') setTimeout(() => push(true), 500);
 });
-const SEAT_VER = '4';   // bump when seat code changes; shows in Streamer.bot's log
+const SEAT_VER = '5';   // bump when seat code changes; shows in Streamer.bot's log
 JQ.onStatus(ok => ok && ping('ws up v' + SEAT_VER + ', frame=' + (frame.src ? 'set' : 'empty')));
 JQ.on(s => { load(s.settings && s.settings.vdoKey); push(false); });
 setInterval(() => push(true), 2000);                           // heartbeat so a reconnecting guest catches up

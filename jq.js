@@ -127,10 +127,11 @@ window.playerView = function (s, i, now) {
   }
   if (ph && ph.indexOf('final') === 0) {
     const me = (s.players || [])[i] || {};
-    v.final = { cat: f.category, wager: me.wager || 0, max: Math.max(me.score || 0, 0), res: me.final || null };
+    v.final = { cat: f.category, wager: me.wager || 0, max: Math.max(me.score || 0, 0), res: me.final || null, mine: me.fans || '', shown: !!me.fshown };
     if (ph !== 'final_cat') v.final.q = f.q;
-    if (ph === 'final_clue' && f.endsAt) v.left = Math.max(0, f.endsAt - now);
-    if (ph === 'final_answer') v.final.a = f.a;
+    if (ph === 'final_clue' && f.endsAt) { v.left = Math.max(0, f.endsAt - now); v.tk = 'final'; v.ts = f.seconds || 30; }
+    v.final.open = ph === 'final_clue' && !(f.endsAt && now > f.endsAt + 2000);   // answer box open
+    if (f.aShown) v.final.a = f.a;                                                 // correct answer only once revealed
   }
   return v;
 };

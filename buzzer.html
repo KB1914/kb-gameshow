@@ -89,6 +89,10 @@ header { display:flex; justify-content:space-between; align-items:center; gap:10
       <div class="hint" id="whint"></div>
     </div>
     <div class="q" id="fq"></div>
+    <div id="fwrite" hidden>
+      <div class="wager"><input id="fa" type="text" maxlength="60" autocomplete="off" placeholder="Write your answer"><button id="fasend" type="button">SAVE</button></div>
+      <div class="hint" id="fahint">Your answer saves as you type. It locks when time runs out.</div>
+    </div>
     <div class="ans" id="fans" hidden></div>
     <div class="bar" id="fbar" hidden><i id="fbarfill"></i></div>
     <div class="hint" id="fnote"></div>
@@ -172,8 +176,13 @@ function render(vw, left) {
       $('wsend').disabled = $('wv').disabled = f.max <= 0;
     }
     $('fq').textContent = f.q || (wagering ? '' : '');
-    $('fans').hidden = !f.a; $('fans').textContent = f.a ? 'Answer: ' + f.a : '';
-    $('fnote').textContent = !wagering ? `Your wager: ${money(f.wager)}${f.res ? (f.res === 'right' ? '. Correct!' : '. Not this time.') : '.'}${f.a ? '' : ' Say your answer when the host asks.'}` : '';
+    $('fans').hidden = !f.a; $('fans').textContent = f.a ? 'Correct answer: ' + f.a : '';
+    // written answer box (open only while the Final clock runs)
+    $('fwrite').hidden = !f.open;
+    if (f.open && document.activeElement !== $('fa') && !$('fa').value && f.mine) $('fa').value = f.mine;
+    if (f.open) $('fahint').textContent = f.mine && f.mine === $('fa').value.trim() ? 'Saved \u2713 You can change it until time runs out.' : 'Your answer saves as you type. It locks when time runs out.';
+    $('fnote').textContent = wagering ? '' : `Your wager: ${money(f.wager)}` + (f.mine || !f.open ? ` \u00b7 Your answer: ${f.mine ? '\u201c' + f.mine + '\u201d' : '(none)'}` : '') +
+      (f.res ? (f.res === 'right' ? ' \u00b7 Correct!' : ' \u00b7 Not this time.') : (f.open ? '' : ' \u00b7 Waiting for the host to reveal.'));
   }
   // buzz button only matters during a regular clue
   const buzzable = vw.ph === 'clue' || vw.ph === 'board';
@@ -200,6 +209,14 @@ $('ddsend').addEventListener('click', () => {
   if (isNaN(val) || val < 5 || val > max) { $('ddhint').textContent = `Enter a number from $5 to ${money(max)}.`; return; }
   send({ jq: 'wager', v: val }); $('ddhint').textContent = 'Sending...'; $('ddv').blur();
 });
+// Final written answer: save as they type (debounced), on SAVE, or on Enter
+let faTimer = null;
+function saveFinal() { clearTimeout(faTimer); const t = $('fa').value.trim(); if (t) send({ jq: 'fanswer', text: t }); }
+$('fa').addEventListener('input', () => { clearTimeout(faTimer); faTimer = setTimeout(saveFinal, 600); });
+$('fasend').addEventListener('click', saveFinal);
+// Enter submits whichever box you're typing in (PC players)
+[['fa', saveFinal], ['wv', () => $('wsend').click()], ['ddv', () => $('ddsend').click()]].forEach(([id, fn]) =>
+  $(id).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); fn(); } }));
 $('wsend').addEventListener('click', () => {
   const val = parseInt($('wv').value, 10);
   const max = lastView && lastView.final ? lastView.final.max : 0;
@@ -217,7 +234,7 @@ window.addEventListener('message', e => {
     if (!gotStatus) status({ state: 'waiting', text: connected ? 'Connected! Waiting for the host' : 'Connection dropped. Reconnecting...' });
   }
   const d = e.data.dataReceived;
-  if (d && d.jq === 'status') { gotStatus = true; connected = true; $('cam').classList.add('small'); $('camtip').hidden = true; status(d); render(d.v, d.left); }
+  if (d && d.jq === 'status') { gotStatus = true; connected = true; $('cam').classList.add('small'); $('camtip').hidden = true; status(d); render(d.v, d.left != null ? d.left : (d.v ? d.v.left : null)); }
 });
 setInterval(() => { if (connected && !gotStatus) send({ jq: 'hello' }); }, 1500);
 </script>

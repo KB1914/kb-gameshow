@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Game Show Buzzer</title>
+<style>
+:root { --bg:#0d0b1e; --card:#1a1733; --txt:#fff; --mut:#b9b4e0; --pink:#ff3fd1; --gold:#ffd23f; --good:#2fd48a; --bad:#ff4d6d; --cyan:#3fe0ff; }
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body { margin:0; background:var(--bg); color:var(--txt); font:600 16px/1.3 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+.wrap { max-width:720px; margin:0 auto; padding:12px 14px 24px; display:flex; flex-direction:column; gap:12px; min-height:100dvh; }
+header { display:flex; justify-content:space-between; align-items:baseline; }
+header .show { font-weight:900; letter-spacing:.12em; font-size:14px; color:var(--pink); text-transform:uppercase; }
+header .me { font-size:20px; font-weight:800; }
+header .score { color:var(--gold); font-weight:900; font-size:20px; }
+.cam { position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:14px; overflow:hidden; border:2px solid #2e2a55; }
+.cam iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+#status { border-radius:14px; padding:14px; text-align:center; font-size:20px; font-weight:800; background:var(--card); border:3px solid #2e2a55; transition:background .15s, border-color .15s; }
+#status[data-s=armed] { background:#10402a; border-color:var(--good); }
+#status[data-s=up] { background:var(--gold); color:#1a1300; border-color:#fff; animation:pulse .6s ease-in-out infinite alternate; }
+#status[data-s=early], #status[data-s=locked], #status[data-s=out] { background:#3a1520; border-color:var(--bad); }
+@keyframes pulse { to { transform:scale(1.03); } }
+#buzz { flex:1; min-height:200px; border:0; border-radius:24px; font:900 clamp(48px,14vw,96px)/1 system-ui,sans-serif; letter-spacing:.06em; color:#fff;
+  background:radial-gradient(circle at 50% 35%, #ff6fe0, #c4009a 70%); box-shadow:0 10px 0 #7a0060, 0 16px 30px #0008; touch-action:manipulation; user-select:none; cursor:pointer; }
+#buzz:active, #buzz.hit { transform:translateY(8px); box-shadow:0 2px 0 #7a0060, 0 6px 14px #0008; }
+#buzz.armed { background:radial-gradient(circle at 50% 35%, #5bffb0, #12a35f 70%); box-shadow:0 10px 0 #0b6b3e, 0 16px 30px #0008; }
+.tip { color:var(--mut); font-size:13px; text-align:center; }
+.bad { background:#3a1520; border:2px solid var(--bad); border-radius:12px; padding:14px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header><div><div class="show">Black Jeopardy</div><div class="me" id="me">Contestant</div></div><div class="score" id="score"></div></header>
+  <div class="cam"><iframe id="v" allow="camera;microphone;autoplay;fullscreen;display-capture"></iframe></div>
+  <div id="status" data-s="offline">Start your camera above, then wait for the host</div>
+  <button id="buzz" type="button">BUZZ</button>
+  <div class="tip">Wait for the host to open buzzing. Pressing early locks you out for a moment. Spacebar works on a computer.</div>
+</div>
+<script>
+// Guest buzzer: publishes the guest's camera to their seat with VDO.Ninja and sends BUZZ presses
+// over the same peer connection. The show's OBS seat sends back live status.
+const qs = new URLSearchParams(location.search);
+const seat = (qs.get('s') || '').replace(/[^a-zA-Z0-9_-]/g, '');
+const name = (qs.get('n') || 'Contestant').slice(0, 30);
+const $ = id => document.getElementById(id);
+if (!seat) { $('app').innerHTML = '<div class="bad">This buzzer link is missing its seat code. Ask the host to send your link again.</div>'; throw 0; }
+$('me').textContent = name;
+const v = $('v');
+v.src = 'https://vdo.ninja/?push=' + encodeURIComponent(seat) + '&label=' + encodeURIComponent(name) + '&webcam';
+let connected = false, gotStatus = false, lastState = '';
+function send(obj) { try { v.contentWindow.postMessage({ sendData: obj, type: 'pcs' }, '*'); } catch (e) {} }
+function buzz() {
+  const b = $('buzz'); b.classList.add('hit'); setTimeout(() => b.classList.remove('hit'), 120);
+  if (!connected) { show({ state: 'offline', text: 'Not connected yet. Start your camera first.' }); return; }
+  send({ jq: 'buzz', t: Date.now() });
+  if (navigator.vibrate) navigator.vibrate(30);
+}
+function show(st) {
+  const el = $('status'); el.dataset.s = st.state; el.textContent = st.text || '';
+  $('buzz').classList.toggle('armed', st.state === 'armed');
+  if (st.score != null) $('score').textContent = (st.score < 0 ? '-$' : '$') + Math.abs(st.score).toLocaleString();
+  if (st.name) $('me').textContent = st.name;
+  if (st.state !== lastState && navigator.vibrate) { if (st.state === 'armed') navigator.vibrate(60); if (st.state === 'up') navigator.vibrate([80, 60, 80]); }
+  lastState = st.state;
+}
+$('buzz').addEventListener('pointerdown', e => { e.preventDefault(); buzz(); });
+document.addEventListener('keydown', e => { if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) { e.preventDefault(); buzz(); } });
+window.addEventListener('message', e => {
+  if (e.source !== v.contentWindow || !e.data) return;
+  const a = e.data.action;
+  if (a === 'push-connection' || a === 'new-push-connection') { connected = e.data.value !== false; if (connected) send({ jq: 'hello' }); if (!gotStatus) show({ state: 'waiting', text: 'Connected! Waiting for the host' }); }
+  const d = e.data.dataReceived;
+  if (d && d.jq === 'status') { gotStatus = true; connected = true; show(d); }
+});
+setInterval(() => { if (connected && !gotStatus) send({ jq: 'hello' }); }, 1500);
+</script>
+</body>
+</html>

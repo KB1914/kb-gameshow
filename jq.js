@@ -62,6 +62,18 @@
 window.fmt = (n) => (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString('en-US');
 window.esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+// Which clock is running right now: the buzz-in window, the answer clock (someone rang in), or Final.
+// Shared by the stream, sounds, host panel and phones so they never disagree.
+window.activeTimer = function (s) {
+  if (!s) return null;
+  if (s.phase === 'final_clue' && s.final && s.final.endsAt) return { kind: 'final', endsAt: s.final.endsAt, seconds: s.final.seconds || 30, key: 'final' + s.final.endsAt };
+  const c = s.clue;
+  if (s.phase !== 'clue' || !c) return null;
+  if (s.active >= 0 && c.answerEndsAt) return { kind: 'answer', endsAt: c.answerEndsAt, seconds: c.answerSeconds || 5, key: 'ans' + c.answerEndsAt };
+  if (c.endsAt) return { kind: 'buzz', endsAt: c.endsAt, seconds: c.seconds || 8, key: 'buzz' + c.endsAt };
+  return null;
+};
+
 // What a guest in seat i (0-based) should see on their buzzer. Shared by seat.html and tests.
 window.seatStatus = function (s, i, now) {
   if (!s) return { state: 'offline', text: 'Connecting to the show...' };
@@ -81,7 +93,7 @@ window.seatStatus = function (s, i, now) {
   if (!c || ph !== 'clue') return Object.assign(base, { state: 'waiting', text: 'Board is up. Next clue coming' });
   if (c.dd) return Object.assign(base, c.ddPlayer === i ? { state: 'up', text: "Daily Double. You're up!" } : { state: 'locked', text: 'Daily Double: ' + (ddName || 'another player') + ' is playing' });
   if ((c.attempted || []).includes(i)) return Object.assign(base, { state: 'out', text: 'You already answered this one' });
-  if (s.active === i) return Object.assign(base, { state: 'up', text: "YOU'RE UP! Answer now." });
+  if (s.active === i) return Object.assign(base, { state: 'up', text: c.answerEndsAt && now > c.answerEndsAt ? "Time! Give your answer" : "YOU'RE UP! Answer now." });
   if (s.active >= 0) return Object.assign(base, { state: 'locked', text: (s.players[s.active] || {}).name + ' is answering' });
   const lock = (b.lockUntil || [])[i] || 0;
   if (b.armed && c.endsAt && now > c.endsAt) return Object.assign(base, { state: 'locked', text: "Time's up" });
@@ -105,7 +117,8 @@ window.playerView = function (s, i, now) {
   if (c && (ph === 'clue' || ph === 'answer' || ph === 'dd_wager')) {
     v.clue = { cat: c.category, val: c.value, dd: !!c.dd, ddp: c.ddPlayer, ddn: c.ddPlayer >= 0 ? (s.players[c.ddPlayer] || {}).name : null, wager: c.wager };
     if (ph !== 'dd_wager') v.clue.q = c.q;
-    if (ph === 'clue' && c.endsAt) v.left = Math.max(0, c.endsAt - now);
+    const at = window.activeTimer(s);
+    if (ph === 'clue' && at) { v.left = Math.max(0, at.endsAt - now); v.tk = at.kind; v.ts = at.seconds; }
     if (ph === 'dd_wager' && c.ddPlayer === i) {   // private wager box for the Daily Double player
       const me = (s.players || [])[i] || {}, vals = (s.board && s.board.values) || [0];
       v.ddw = { max: Math.max(me.score || 0, Math.max.apply(null, vals)), wager: c.wager };

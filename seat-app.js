@@ -32,7 +32,8 @@ window.addEventListener('message', e => {
   if (d && d.jq === 'wager' && JQ.state && (JQ.state.phase === 'final_cat' || JQ.state.phase === 'dd_wager')) { JQ.send('wager', { n: N, v: Math.max(0, parseInt(d.v, 10) || 0) }); setTimeout(() => push(true), 400); }
   if (e.data.action === 'view-connection' || e.data.action === 'guest-connected') setTimeout(() => push(true), 500);
 });
-JQ.onStatus(ok => ok && ping('ws up, frame=' + (frame.src ? 'set' : 'empty')));
+const SEAT_VER = '4';   // bump when seat code changes; shows in Streamer.bot's log
+JQ.onStatus(ok => ok && ping('ws up v' + SEAT_VER + ', frame=' + (frame.src ? 'set' : 'empty')));
 JQ.on(s => { load(s.settings && s.settings.vdoKey); push(false); });
 setInterval(() => push(true), 2000);                           // heartbeat so a reconnecting guest catches up
 setInterval(() => push(false), 150);                           // early-lockout expiry etc.

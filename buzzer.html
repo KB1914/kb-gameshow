@@ -109,7 +109,7 @@ const v = $('v');
 v.src = 'https://vdo.ninja/?push=' + encodeURIComponent(seat) + '&label=' + encodeURIComponent(name) + '&webcam';
 const money = n => (n < 0 ? '-$' : '$') + Math.abs(n || 0).toLocaleString('en-US');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-let connected = false, gotStatus = false, lastState = '', timerEnd = 0, timerTotal = 0, lastView = null;
+let connected = false, gotStatus = false, lastState = '', timerEnd = 0, timerTotal = 0, timerKind = '', lastView = null;
 
 function send(obj) { try { v.contentWindow.postMessage({ sendData: obj, type: 'pcs' }, '*'); } catch (e) {} }
 function buzz() {
@@ -181,8 +181,8 @@ function render(vw, left) {
   const noBuzz = !!f || !!(c && c.dd);
   $('buzz').hidden = noBuzz; $('tip').hidden = noBuzz;
   // timer
-  if (left != null) { timerEnd = Date.now() + left; timerTotal = Math.max(timerTotal && timerEnd > Date.now() ? timerTotal : 0, left); }
-  else { timerEnd = 0; timerTotal = 0; }
+  if (left != null) { timerEnd = Date.now() + left; timerTotal = (vw.ts ? vw.ts * 1000 : Math.max(timerTotal, left)); timerKind = vw.tk || ''; }
+  else { timerEnd = 0; timerTotal = 0; timerKind = ''; }
 }
 function tick() {
   const rem = timerEnd - Date.now(), on = timerEnd > 0 && timerTotal > 0;
@@ -190,6 +190,8 @@ function tick() {
   const inFinal = lastView && lastView.final;
   $('bar').hidden = !on || inFinal; $('barfill').style.width = fill;
   $('fbar').hidden = !on || !inFinal; $('fbarfill').style.width = fill;
+  const st = $('status');
+  if (timerKind === 'answer' && lastState === 'up' && on) st.textContent = rem > 0 ? `YOU'RE UP! ${Math.ceil(rem / 1000)}s to answer` : 'Time! Give your answer';
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);

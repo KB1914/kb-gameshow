@@ -5,40 +5,94 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Game Show Buzzer</title>
 <style>
-:root { --bg:#0d0b1e; --card:#1a1733; --txt:#fff; --mut:#b9b4e0; --pink:#ff3fd1; --gold:#ffd23f; --good:#2fd48a; --bad:#ff4d6d; --cyan:#3fe0ff; }
+:root { --bg:#0d0b1e; --card:#1a1733; --line:#2e2a55; --txt:#fff; --mut:#b9b4e0; --pink:#ff3fd1; --gold:#ffd23f; --good:#2fd48a; --bad:#ff4d6d; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 html,body { margin:0; background:var(--bg); color:var(--txt); font:600 16px/1.3 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
-.wrap { max-width:720px; margin:0 auto; padding:12px 14px 24px; display:flex; flex-direction:column; gap:12px; min-height:100dvh; }
-header { display:flex; justify-content:space-between; align-items:baseline; }
-header .show { font-weight:900; letter-spacing:.12em; font-size:14px; color:var(--pink); text-transform:uppercase; }
-header .me { font-size:20px; font-weight:800; }
-header .score { color:var(--gold); font-weight:900; font-size:20px; }
-.cam { position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:14px; overflow:hidden; border:2px solid #2e2a55; }
+.wrap { max-width:720px; margin:0 auto; padding:10px 14px 20px; display:flex; flex-direction:column; gap:10px; min-height:100dvh; }
+header { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.show { font-weight:900; letter-spacing:.12em; font-size:12px; color:var(--pink); text-transform:uppercase; }
+.me { font-size:20px; font-weight:800; }
+.myscore { text-align:right; }
+.myscore small { display:block; color:var(--mut); font-size:11px; letter-spacing:.1em; text-transform:uppercase; }
+.myscore b { font-size:30px; font-weight:900; color:var(--gold); }
+.myscore b.neg { color:var(--bad); }
+.scores { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.sc { background:var(--card); border:2px solid var(--line); border-radius:10px; padding:6px 8px; min-width:0; }
+.sc .n { font-size:12px; color:var(--mut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sc .v { font-size:18px; font-weight:900; }
+.sc.me { border-color:var(--pink); }
+.sc.lead .n::before { content:"\2605 "; color:var(--gold); }
+.cam { position:relative; width:100%; aspect-ratio:4/3; background:#000; border-radius:14px; overflow:hidden; border:2px solid var(--line); transition:all .3s; }
+.cam.small { width:132px; aspect-ratio:4/3; align-self:flex-end; margin-top:-4px; }
 .cam iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
-#status { border-radius:14px; padding:14px; text-align:center; font-size:20px; font-weight:800; background:var(--card); border:3px solid #2e2a55; transition:background .15s, border-color .15s; }
+.camtip { color:var(--mut); font-size:13px; text-align:center; }
+#status { border-radius:14px; padding:12px; text-align:center; font-size:19px; font-weight:800; background:var(--card); border:3px solid var(--line); }
 #status[data-s=armed] { background:#10402a; border-color:var(--good); }
 #status[data-s=up] { background:var(--gold); color:#1a1300; border-color:#fff; animation:pulse .6s ease-in-out infinite alternate; }
 #status[data-s=early], #status[data-s=locked], #status[data-s=out] { background:#3a1520; border-color:var(--bad); }
 @keyframes pulse { to { transform:scale(1.03); } }
-#buzz { flex:1; min-height:200px; border:0; border-radius:24px; font:900 clamp(48px,14vw,96px)/1 system-ui,sans-serif; letter-spacing:.06em; color:#fff;
+.card { background:var(--card); border:2px solid var(--line); border-radius:14px; padding:12px; }
+.card h3 { margin:0 0 6px; font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--mut); display:flex; justify-content:space-between; }
+.card h3 b { color:var(--gold); }
+.q { font-size:19px; line-height:1.35; font-weight:700; }
+.ans { margin-top:8px; padding-top:8px; border-top:1px solid var(--line); color:var(--good); font-weight:800; }
+.dd { display:inline-block; background:var(--pink); color:#fff; padding:2px 8px; border-radius:6px; font-size:12px; margin-bottom:6px; }
+.bar { height:6px; background:#2e2a55; border-radius:3px; overflow:hidden; margin-top:10px; }
+.bar i { display:block; height:100%; background:var(--gold); width:0; }
+.board { display:grid; grid-template-columns:repeat(6,1fr); gap:3px; }
+.board div { background:#1f2b8a; border-radius:4px; text-align:center; font-size:11px; padding:5px 2px; color:var(--gold); font-weight:900; min-width:0; }
+.board .cat { background:transparent; color:var(--txt); font-size:9px; font-weight:800; line-height:1.1; overflow:hidden; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; padding:0 1px 3px; }
+.board .gone { background:#15123a; color:transparent; }
+.wager { display:flex; gap:8px; margin-top:8px; }
+.wager input { flex:1; min-width:0; font:800 22px system-ui; padding:10px; border-radius:10px; border:2px solid var(--line); background:#0d0b1e; color:#fff; }
+.wager button { font:900 16px system-ui; padding:0 18px; border-radius:10px; border:0; background:var(--good); color:#062b19; }
+.hint { color:var(--mut); font-size:13px; margin-top:6px; }
+#buzz { flex:1; min-height:150px; border:0; border-radius:24px; font:900 clamp(48px,14vw,96px)/1 system-ui,sans-serif; letter-spacing:.06em; color:#fff;
   background:radial-gradient(circle at 50% 35%, #ff6fe0, #c4009a 70%); box-shadow:0 10px 0 #7a0060, 0 16px 30px #0008; touch-action:manipulation; user-select:none; cursor:pointer; }
 #buzz:active, #buzz.hit { transform:translateY(8px); box-shadow:0 2px 0 #7a0060, 0 6px 14px #0008; }
 #buzz.armed { background:radial-gradient(circle at 50% 35%, #5bffb0, #12a35f 70%); box-shadow:0 10px 0 #0b6b3e, 0 16px 30px #0008; }
-.tip { color:var(--mut); font-size:13px; text-align:center; }
+#buzz.off { opacity:.35; }
+.tip { color:var(--mut); font-size:12px; text-align:center; }
 .bad { background:#3a1520; border:2px solid var(--bad); border-radius:12px; padding:14px; }
+[hidden] { display:none !important; }
 </style>
 </head>
 <body>
 <div class="wrap" id="app">
-  <header><div><div class="show">Black Jeopardy</div><div class="me" id="me">Contestant</div></div><div class="score" id="score"></div></header>
-  <div class="cam"><iframe id="v" allow="camera;microphone;autoplay;fullscreen;display-capture"></iframe></div>
+  <header>
+    <div><div class="show">Black Jeopardy</div><div class="me" id="me">Contestant</div></div>
+    <div class="myscore"><small>Your score</small><b id="myscore">$0</b></div>
+  </header>
+  <div class="scores" id="scores" hidden></div>
+  <div class="cam" id="cam"><iframe id="v" allow="camera;microphone;autoplay;fullscreen;display-capture"></iframe></div>
+  <div class="camtip" id="camtip">Pick your camera and mic above, then press START.</div>
   <div id="status" data-s="offline">Start your camera above, then wait for the host</div>
+  <div class="card" id="cluecard" hidden>
+    <h3><span id="cat"></span><b id="val"></b></h3>
+    <div class="dd" id="dd" hidden>DAILY DOUBLE</div>
+    <div class="q" id="q"></div>
+    <div class="ans" id="ans" hidden></div>
+    <div class="bar" id="bar" hidden><i id="barfill"></i></div>
+  </div>
+  <div class="card" id="boardcard" hidden><h3><span>Board</span><span>what's left</span></h3><div class="board" id="board"></div></div>
+  <div class="card" id="finalcard" hidden>
+    <h3><span>Final Jeopardy</span><b id="fcat"></b></h3>
+    <div id="fwager" hidden>
+      <div class="q">How much do you want to wager?</div>
+      <div class="wager"><input id="wv" type="number" inputmode="numeric" min="0" placeholder="0"><button id="wsend" type="button">LOCK IN</button></div>
+      <div class="hint" id="whint"></div>
+    </div>
+    <div class="q" id="fq"></div>
+    <div class="ans" id="fans" hidden></div>
+    <div class="bar" id="fbar" hidden><i id="fbarfill"></i></div>
+    <div class="hint" id="fnote"></div>
+  </div>
   <button id="buzz" type="button">BUZZ</button>
-  <div class="tip">Wait for the host to open buzzing. Pressing early locks you out for a moment. Spacebar works on a computer.</div>
+  <div class="tip" id="tip">Wait for the host to open buzzing. Pressing early locks you out for a moment. Spacebar works on a computer.</div>
 </div>
 <script>
-// Guest buzzer: publishes the guest's camera to their seat with VDO.Ninja and sends BUZZ presses
-// over the same peer connection. The show's OBS seat sends back live status.
+// Guest buzzer: publishes the guest's camera to their seat with VDO.Ninja, sends BUZZ presses over the
+// same peer connection, and shows what the show's OBS seat sends back (status, scores, clue, board, Final).
 const qs = new URLSearchParams(location.search);
 const seat = (qs.get('s') || '').replace(/[^a-zA-Z0-9_-]/g, '');
 const name = (qs.get('n') || 'Contestant').slice(0, 30);
@@ -47,30 +101,97 @@ if (!seat) { $('app').innerHTML = '<div class="bad">This buzzer link is missing 
 $('me').textContent = name;
 const v = $('v');
 v.src = 'https://vdo.ninja/?push=' + encodeURIComponent(seat) + '&label=' + encodeURIComponent(name) + '&webcam';
-let connected = false, gotStatus = false, lastState = '';
+const money = n => (n < 0 ? '-$' : '$') + Math.abs(n || 0).toLocaleString('en-US');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let connected = false, gotStatus = false, lastState = '', timerEnd = 0, timerTotal = 0, lastView = null;
+
 function send(obj) { try { v.contentWindow.postMessage({ sendData: obj, type: 'pcs' }, '*'); } catch (e) {} }
 function buzz() {
   const b = $('buzz'); b.classList.add('hit'); setTimeout(() => b.classList.remove('hit'), 120);
-  if (!connected) { show({ state: 'offline', text: 'Not connected yet. Start your camera first.' }); return; }
+  if (!connected) { status({ state: 'offline', text: 'Not connected yet. Start your camera first.' }); return; }
   send({ jq: 'buzz', t: Date.now() });
   if (navigator.vibrate) navigator.vibrate(30);
 }
-function show(st) {
+function status(st) {
   const el = $('status'); el.dataset.s = st.state; el.textContent = st.text || '';
   $('buzz').classList.toggle('armed', st.state === 'armed');
-  if (st.score != null) $('score').textContent = (st.score < 0 ? '-$' : '$') + Math.abs(st.score).toLocaleString();
   if (st.name) $('me').textContent = st.name;
+  if (st.score != null) { $('myscore').textContent = money(st.score); $('myscore').classList.toggle('neg', st.score < 0); }
   if (st.state !== lastState && navigator.vibrate) { if (st.state === 'armed') navigator.vibrate(60); if (st.state === 'up') navigator.vibrate([80, 60, 80]); }
   lastState = st.state;
 }
+function render(vw, left) {
+  if (!vw) return; lastView = vw;
+  // scoreboard
+  const top = Math.max(...vw.scores.map(p => p[1]));
+  $('scores').hidden = false;
+  $('scores').innerHTML = vw.scores.map((p, i) =>
+    `<div class="sc${i === vw.me ? ' me' : ''}${p[1] === top && top > 0 ? ' lead' : ''}"><div class="n">${esc(p[0])}${i === vw.me ? ' (you)' : ''}</div><div class="v">${money(p[1])}</div></div>`).join('');
+  // board
+  $('boardcard').hidden = !vw.board;
+  if (vw.board) {
+    const b = vw.board, used = new Set(b.used);
+    let h = b.c.map(c => `<div class="cat">${esc(c)}</div>`).join('');
+    b.v.forEach((val, r) => b.c.forEach((_, c) => { const k = (c + 1) + '-' + (r + 1); h += `<div class="${used.has(k) ? 'gone' : ''}">${used.has(k) ? '.' : '$' + val}</div>`; }));
+    $('board').innerHTML = h;
+  }
+  // clue
+  const c = vw.clue; $('cluecard').hidden = !c;
+  if (c) {
+    $('cat').textContent = c.cat || ''; $('val').textContent = c.dd ? '' : money(c.val);
+    $('dd').hidden = !c.dd;
+    $('q').textContent = c.q != null ? c.q : (c.dd ? (c.ddp === vw.me ? "It's your Daily Double. Chat is voting on double or steal..." : 'Daily Double. Chat is voting...') : '');
+    $('ans').hidden = !c.a; $('ans').textContent = c.a ? 'Answer: ' + c.a : '';
+  }
+  // final
+  const f = vw.final; $('finalcard').hidden = !f;
+  if (f) {
+    $('fcat').textContent = f.cat || '';
+    const wagering = vw.ph === 'final_cat';
+    $('fwager').hidden = !wagering;
+    if (wagering) {
+      $('whint').textContent = f.max > 0 ? `You can wager $0 to ${money(f.max)}. Current wager: ${money(f.wager)}. You can change it until the clue appears.` : "You're at $0 or below, so your wager is $0.";
+      $('wsend').disabled = $('wv').disabled = f.max <= 0;
+    }
+    $('fq').textContent = f.q || (wagering ? '' : '');
+    $('fans').hidden = !f.a; $('fans').textContent = f.a ? 'Answer: ' + f.a : '';
+    $('fnote').textContent = !wagering ? `Your wager: ${money(f.wager)}${f.res ? (f.res === 'right' ? '. Correct!' : '. Not this time.') : '.'}${f.a ? '' : ' Say your answer when the host asks.'}` : '';
+  }
+  // buzz button only matters during a regular clue
+  const buzzable = vw.ph === 'clue' || vw.ph === 'board';
+  $('buzz').classList.toggle('off', !buzzable && !!f);
+  $('buzz').hidden = !!f; $('tip').hidden = !!f;
+  // timer
+  if (left != null) { timerEnd = Date.now() + left; timerTotal = Math.max(timerTotal && timerEnd > Date.now() ? timerTotal : 0, left); }
+  else { timerEnd = 0; timerTotal = 0; }
+}
+function tick() {
+  const rem = timerEnd - Date.now(), on = timerEnd > 0 && timerTotal > 0;
+  const fill = on ? Math.max(0, rem / timerTotal) * 100 + '%' : '0';
+  const inFinal = lastView && lastView.final;
+  $('bar').hidden = !on || inFinal; $('barfill').style.width = fill;
+  $('fbar').hidden = !on || !inFinal; $('fbarfill').style.width = fill;
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+$('wsend').addEventListener('click', () => {
+  const val = parseInt($('wv').value, 10);
+  const max = lastView && lastView.final ? lastView.final.max : 0;
+  if (isNaN(val) || val < 0 || val > max) { $('whint').textContent = `Enter a number from $0 to ${money(max)}.`; return; }
+  send({ jq: 'wager', v: val }); $('whint').textContent = 'Sending...'; $('wv').blur();
+});
 $('buzz').addEventListener('pointerdown', e => { e.preventDefault(); buzz(); });
-document.addEventListener('keydown', e => { if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) { e.preventDefault(); buzz(); } });
+document.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) { e.preventDefault(); buzz(); } });
 window.addEventListener('message', e => {
   if (e.source !== v.contentWindow || !e.data) return;
   const a = e.data.action;
-  if (a === 'push-connection' || a === 'new-push-connection') { connected = e.data.value !== false; if (connected) send({ jq: 'hello' }); if (!gotStatus) show({ state: 'waiting', text: 'Connected! Waiting for the host' }); }
+  if (a === 'push-connection' || a === 'new-push-connection') {
+    connected = e.data.value !== false;
+    if (connected) { send({ jq: 'hello' }); $('cam').classList.add('small'); $('camtip').hidden = true; }
+    if (!gotStatus) status({ state: 'waiting', text: connected ? 'Connected! Waiting for the host' : 'Connection dropped. Reconnecting...' });
+  }
   const d = e.data.dataReceived;
-  if (d && d.jq === 'status') { gotStatus = true; connected = true; show(d); }
+  if (d && d.jq === 'status') { gotStatus = true; connected = true; $('cam').classList.add('small'); $('camtip').hidden = true; status(d); render(d.v, d.left); }
 });
 setInterval(() => { if (connected && !gotStatus) send({ jq: 'hello' }); }, 1500);
 </script>

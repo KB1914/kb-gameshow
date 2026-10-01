@@ -10,9 +10,11 @@ function ping(ev) { try { JQ.sendAction('JQ Seat Ping', { n: N, ev: String(ev).s
 // Reloads the camera only when the key, password or quality setting changes. Password must match the phone's link.
 function load(st) {
   st = st || {}; const k = st.vdoKey; if (!k) return;
-  const pw = st.vdoPassword || '', br = st.vdoQuality == 1080 ? 4000 : 2500, sig = k + '|' + pw + '|' + br;
-  if (sig === key) return; key = sig; ping('load view ' + k + 'p' + N + (pw ? ' (password)' : '') + ' ' + br + 'kbps');
-  frame.src = `https://vdo.ninja/?view=${k}p${N}&cleanoutput&transparent&videobitrate=${br}&codec=h264` + (pw ? `&password=${encodeURIComponent(pw)}` : '');
+  const pw = st.vdoPassword || '', br = st.vdoQuality == 1080 ? 4000 : 2500, tb = !!st.talkback, sig = k + '|' + pw + '|' + br + '|' + tb;
+  if (sig === key) return; key = sig; ping('load view ' + k + 'p' + N + (pw ? ' (password)' : '') + ' ' + br + 'kbps' + (tb ? ' room' : ''));
+  // talkback on: phones are in room <key>, so view this one guest with &room&solo (viewer only, not a room member)
+  frame.src = `https://vdo.ninja/?view=${k}p${N}&cleanoutput&transparent&videobitrate=${br}&codec=h264` + (pw ? `&password=${encodeURIComponent(pw)}` : '')
+    + (tb ? `&room=${encodeURIComponent(k)}&solo` : '');
 }
 function push(force) {
   const now = JQ.now(), st = seatStatus(JQ.state, I, now), view = playerView(JQ.state, I, now);
@@ -37,7 +39,7 @@ window.addEventListener('message', e => {
   if (d && d.jq === 'fanswer' && JQ.state && JQ.state.phase === 'final_clue') { JQ.send('finalanswer', { n: N, text: String(d.text || '').slice(0, 60) }); setTimeout(() => push(true), 300); }
   if (e.data.action === 'view-connection' || e.data.action === 'guest-connected') setTimeout(() => push(true), 500);
 });
-const SEAT_VER = '6';   // bump when seat code changes; shows in Streamer.bot's log
+const SEAT_VER = '7';   // bump when seat code changes; shows in Streamer.bot's log
 JQ.onStatus(ok => ok && ping('ws up v' + SEAT_VER + ', frame=' + (frame.src ? 'set' : 'empty')));
 JQ.on(s => { load(s.settings); push(false); });
 setInterval(() => push(true), 2000);                           // heartbeat so a reconnecting guest catches up

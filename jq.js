@@ -78,7 +78,7 @@ window.activeTimer = function (s) {
 window.seatStatus = function (s, i, now) {
   if (!s) return { state: 'offline', text: 'Connecting to the show...' };
   const p = s.players[i] || {}, c = s.clue, b = s.buzz || {};
-  const base = { name: p.name, score: p.score };
+  const base = { name: p.name, score: p.score, muted: !!p.muted };
   if (s.onBreak) return Object.assign(base, { state: 'waiting', text: 'On a break. Hang tight.' });
   const ph = s.phase || '';
   if (ph === 'final_cat') return Object.assign(base, { state: 'waiting', text: 'Final Jeopardy: lock in your wager' });

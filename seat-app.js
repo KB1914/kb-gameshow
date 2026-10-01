@@ -7,9 +7,12 @@ if (qs.has('debug')) dbg.style.display = 'block';
 let key = null, lastSent = '';
 // Diagnostics: seat events show up in Streamer.bot's log as a request for "JQ Seat Ping" (no such action; harmless)
 function ping(ev) { try { JQ.sendAction('JQ Seat Ping', { n: N, ev: String(ev).slice(0, 120) }); } catch (e) {} }
-function load(k) {
-  if (!k || k === key) return; key = k; ping('load view ' + k + 'p' + N);
-  frame.src = `https://vdo.ninja/?view=${k}p${N}&cleanoutput&transparent&noaudioprocessing`;
+// Reloads the camera only when the key, password or quality setting changes. Password must match the phone's link.
+function load(st) {
+  st = st || {}; const k = st.vdoKey; if (!k) return;
+  const pw = st.vdoPassword || '', br = st.vdoQuality == 1080 ? 4000 : 2500, sig = k + '|' + pw + '|' + br;
+  if (sig === key) return; key = sig; ping('load view ' + k + 'p' + N + (pw ? ' (password)' : '') + ' ' + br + 'kbps');
+  frame.src = `https://vdo.ninja/?view=${k}p${N}&cleanoutput&transparent&videobitrate=${br}&codec=h264` + (pw ? `&password=${encodeURIComponent(pw)}` : '');
 }
 function push(force) {
   const now = JQ.now(), st = seatStatus(JQ.state, I, now), view = playerView(JQ.state, I, now);
@@ -34,8 +37,8 @@ window.addEventListener('message', e => {
   if (d && d.jq === 'fanswer' && JQ.state && JQ.state.phase === 'final_clue') { JQ.send('finalanswer', { n: N, text: String(d.text || '').slice(0, 60) }); setTimeout(() => push(true), 300); }
   if (e.data.action === 'view-connection' || e.data.action === 'guest-connected') setTimeout(() => push(true), 500);
 });
-const SEAT_VER = '5';   // bump when seat code changes; shows in Streamer.bot's log
+const SEAT_VER = '6';   // bump when seat code changes; shows in Streamer.bot's log
 JQ.onStatus(ok => ok && ping('ws up v' + SEAT_VER + ', frame=' + (frame.src ? 'set' : 'empty')));
-JQ.on(s => { load(s.settings && s.settings.vdoKey); push(false); });
+JQ.on(s => { load(s.settings); push(false); });
 setInterval(() => push(true), 2000);                           // heartbeat so a reconnecting guest catches up
 setInterval(() => push(false), 150);                           // early-lockout expiry etc.

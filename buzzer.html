@@ -110,7 +110,12 @@ const $ = id => document.getElementById(id);
 if (!seat) { $('app').innerHTML = '<div class="bad">This buzzer link is missing its seat code. Ask the host to send your link again.</div>'; throw 0; }
 $('me').textContent = name;
 const v = $('v');
-v.src = 'https://vdo.ninja/?push=' + encodeURIComponent(seat) + '&label=' + encodeURIComponent(name) + '&webcam';
+// Camera: front-facing, 720p (or 1080p if the host link says q=1080), 30 fps; noise gate + low-cut keep room noise down.
+// pw must match the password the OBS seat uses (both come from the host's Settings tab).
+const pw = (qs.get('pw') || '').replace(/[^a-zA-Z0-9_-]/g, '');
+const vq = qs.get('q') === '1080' ? 0 : 1;
+v.src = 'https://vdo.ninja/?push=' + encodeURIComponent(seat) + '&label=' + encodeURIComponent(name) + '&webcam'
+  + '&quality=' + vq + '&maxframerate=30&facing=front&noisegate&lowcut' + (pw ? '&password=' + encodeURIComponent(pw) : '');
 const money = n => (n < 0 ? '-$' : '$') + Math.abs(n || 0).toLocaleString('en-US');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 let connected = false, gotStatus = false, lastState = '', timerEnd = 0, timerTotal = 0, timerKind = '', lastView = null;

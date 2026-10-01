@@ -58,12 +58,12 @@ header { display:flex; justify-content:space-between; align-items:center; gap:10
 </style>
 </head>
 <body>
-<style>.snd{background:none;border:2px solid rgba(255,255,255,.35);color:#fff;border-radius:10px;font-size:20px;width:44px;height:44px;margin-left:8px;flex:none}.snd.off{opacity:.45}</style>
+<style>.snd{background:none;border:2px solid rgba(255,255,255,.35);color:#fff;border-radius:10px;font-size:18px;width:48px;height:48px;margin-left:8px;flex:none;line-height:1;display:flex;flex-direction:column;align-items:center;justify-content:center}.snd small{font-size:9px;font-weight:800;letter-spacing:.08em;margin-top:2px}.snd.off{opacity:.45}</style>
 <div class="wrap" id="app">
   <header>
     <div><div class="show">Black Jeopardy</div><div class="me" id="me">Contestant</div></div>
     <div class="myscore"><small>Your score</small><b id="myscore">$0</b></div>
-    <button type="button" id="snd" class="snd" title="Game sounds on/off">&#128264;</button>
+    <button type="button" id="snd" class="snd" title="Game sound effects on/off (does not affect your mic)">&#128276;<small>SFX</small></button>
   </header>
   <div class="scores" id="scores" hidden></div>
   <div class="cam" id="cam"><iframe id="v" allow="camera;microphone;autoplay;fullscreen;display-capture"></iframe></div>
@@ -146,7 +146,7 @@ const SOUNDS = {
   timeup: () => { tone(440, 0, 0.12, 'square', 0.15); tone(440, 0.18, 0.12, 'square', 0.15); tone(330, 0.36, 0.3, 'square', 0.15); }
 };
 function sfx(n) { if (!sndOn || !actx || !SOUNDS[n]) return; try { if (actx.state === 'suspended') actx.resume(); SOUNDS[n](); } catch (e) {} }
-function sndBtn() { const b = $('snd'); if (b) { b.innerHTML = sndOn ? '&#128264;' : '&#128263;'; b.classList.toggle('off', !sndOn); } }
+function sndBtn() { const b = $('snd'); if (b) { b.innerHTML = (sndOn ? '&#128276;' : '&#128277;') + '<small>SFX</small>'; b.classList.toggle('off', !sndOn); } }
 $('snd').onclick = () => { unlock(); sndOn = !sndOn; try { localStorage.setItem('jq-snd', sndOn ? 'on' : 'off'); } catch (e) {} sndBtn(); if (sndOn) sfx('armed'); };
 sndBtn();
 let lastScore = null, timeupAt = 0;

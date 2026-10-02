@@ -24,6 +24,7 @@ header { display:flex; justify-content:space-between; align-items:center; gap:10
 .sc.lead .n::before { content:"\2605 "; color:var(--gold); }
 .cam { position:relative; width:100%; aspect-ratio:4/3; background:#000; border-radius:14px; overflow:hidden; border:2px solid var(--line); transition:all .3s; }
 .cam.small { aspect-ratio:16/9; max-height:34vh; }
+.rf .cam.small { max-height:42vh; }
 .cam iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
 .camtip { color:var(--mut); font-size:13px; text-align:center; }
 #status { border-radius:14px; padding:12px; text-align:center; font-size:19px; font-weight:800; background:var(--card); border:3px solid var(--line); }
@@ -122,7 +123,10 @@ const vq = qs.get('q') === '1080' ? 0 : 1;
 const room = qs.get('tb') === '1' ? seat.replace(/p[1-3]$/, '') : '';
 v.src = 'https://vdo.ninja/?push=' + encodeURIComponent(seat) + '&label=' + encodeURIComponent(name) + '&webcam'
   + '&quality=' + vq + '&maxframerate=30&facing=front&noisegate&lowcut' + (pw ? '&password=' + encodeURIComponent(pw) : '')
-  + (room ? '&room=' + encodeURIComponent(room) + '&roombitrate=0' : '');
+  + (room ? '&room=' + encodeURIComponent(room) + '&roombitrate=0' : '')
+  // Return feed (rf=1): show only the host's video (the live show) with your own camera as a small preview. Everyone's audio still plays.
+  + (room && qs.get('rf') === '1' ? '&broadcast=' + encodeURIComponent(room + 'host') + '&showlist=0' : '');
+if (room && qs.get('rf') === '1') document.documentElement.classList.add('rf');
 const money = n => (n < 0 ? '-$' : '$') + Math.abs(n || 0).toLocaleString('en-US');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 let connected = false, gotStatus = false, lastState = '', timerEnd = 0, timerTotal = 0, timerKind = '', lastView = null;

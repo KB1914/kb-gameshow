@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Pop the Balloon</title>
+<style>
+:root { --navy:#0b1026; --card:#161c3d; --line:#2c3560; --txt:#fff; --mut:#b4bce0; --pink:#ff0a8a; --red:#ff2a4a; --cream:#f6efd2; --good:#2fd48a; --warn:#ffb224; }
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body { margin:0; background:var(--navy); color:var(--txt); font:600 16px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+.wrap { max-width:560px; margin:0 auto; padding:10px 14px 24px; display:flex; flex-direction:column; gap:10px; min-height:100dvh; }
+header { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+.show { font-weight:900; letter-spacing:.12em; font-size:12px; color:var(--pink); text-transform:uppercase; }
+.me { font-size:20px; font-weight:800; }
+.cam { position:relative; width:100%; aspect-ratio:3/4; max-height:46vh; background:#000; border-radius:14px; overflow:hidden; border:2px solid var(--line); transition:all .3s; }
+.cam.small { max-height:30vh; }
+.cam iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+.tip { color:var(--mut); font-size:13px; text-align:center; }
+#status { border-radius:14px; padding:12px; text-align:center; font-size:18px; font-weight:800; background:var(--card); border:3px solid var(--line); }
+#status[data-s=up] { background:#10402a; border-color:var(--good); }
+#status[data-s=popped] { background:#3a1520; border-color:var(--red); }
+#status[data-s=asking] { background:#4a3500; border-color:var(--warn); }
+#status[data-s=pick] { background:var(--pink); border-color:#fff; }
+.big { position:relative; overflow:hidden; width:100%; border:0; border-radius:18px; padding:26px 12px; font:900 30px/1 system-ui,sans-serif; letter-spacing:.04em; color:#fff;
+       background:linear-gradient(135deg,var(--pink),var(--red)); box-shadow:0 6px 0 #8a0638; touch-action:none; user-select:none; -webkit-user-select:none; }
+.big small { display:block; margin-top:8px; font:700 13px/1.2 system-ui,sans-serif; letter-spacing:0; opacity:.9; }
+.big i { position:absolute; left:0; top:0; bottom:0; width:0; background:rgba(255,255,255,.35); pointer-events:none; }
+.big.holding i { width:100%; transition:width .7s linear; }
+.big:disabled { opacity:.35; box-shadow:none; }
+.alt { width:100%; border:2px solid var(--cream); background:transparent; color:var(--cream); border-radius:14px; padding:16px; font:800 17px system-ui,sans-serif; }
+.alt:disabled { opacity:.5; }
+.card { background:var(--card); border:2px solid var(--line); border-radius:14px; padding:12px; }
+.card h3 { margin:0 0 8px; font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--mut); }
+.row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-top:1px solid var(--line); }
+.row:first-of-type { border-top:0; }
+.row b { font-size:17px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.row button { flex:0 0 auto; border:0; border-radius:10px; padding:12px 18px; font:800 15px system-ui,sans-serif; color:#fff; background:var(--pink); }
+.row .out { color:var(--mut); font-size:13px; }
+.bad { background:#3a1520; border:2px solid var(--red); border-radius:14px; padding:16px; text-align:center; }
+[hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header><div><div class="show">Pop the Balloon</div><div class="me" id="me"></div></div></header>
+  <div class="cam" id="cam"><iframe id="v" allow="autoplay;camera;microphone;fullscreen"></iframe></div>
+  <div class="tip" id="camtip">Tap the camera above and allow camera and microphone. Wear headphones if you can.</div>
+  <div id="status" data-s="offline">Start your camera to join</div>
+
+  <div id="guest" hidden>
+    <button class="big" id="pop" type="button"><i></i>POP<small>Hold to pop your balloon</small></button>
+    <button class="alt" id="ask" type="button" hidden>Ask for my balloon back</button>
+  </div>
+
+  <div class="card" id="pick" hidden>
+    <h3>Your pick: pop the people you are not choosing</h3>
+    <div id="list"></div>
+  </div>
+</div>
+<script>
+// Pop the Balloon phone page. Publishes this person's camera with VDO.Ninja and sends button presses over the
+// same connection; the show's overlay in OBS answers with this person's live status. Same method as the
+// Black Jeopardy buzzer page.
+//   ?k=<show key>  &r=g1..g8 | c | h   &n=<name>
+const qs = new URLSearchParams(location.search);
+const key = (qs.get('k') || '').replace(/[^a-zA-Z0-9]/g, '');
+const role = (qs.get('r') || '').toLowerCase();
+const name = (qs.get('n') || '').slice(0, 30);
+const $ = id => document.getElementById(id);
+const okRole = /^(g[1-8]|c|h)$/.test(role);
+if (!key || !okRole) { $('app').innerHTML = '<div class="bad">This link is missing its show code or seat. Ask the host to send your link again.</div>'; throw 0; }
+const isGuest = role[0] === 'g', isCon = role === 'c';
+$('me').textContent = name || (isCon ? 'Contestant' : role === 'h' ? 'Host' : 'Guest');
+const v = $('v');
+// Camera: front-facing 720p. Everyone joins room <key> so they can hear each other and the host;
+// roombitrate=0 means no video goes to the other phones (saves data). OBS still gets full video.
+v.src = 'https://vdo.ninja/?push=' + encodeURIComponent(key + role) + '&label=' + encodeURIComponent(name || role) + '&webcam'
+  + '&quality=1&maxframerate=30&facing=front&noisegate&lowcut&room=' + encodeURIComponent(key) + '&roombitrate=0';
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let connected = false, gotStatus = false, mine = '', lastSig = '';
+
+function send(obj) { try { v.contentWindow.postMessage({ sendData: obj, type: 'pcs' }, '*'); } catch (e) {} }
+function say(s, text) { const el = $('status'); el.dataset.s = s; el.textContent = text; }
+
+const TEXT = { up: 'Your balloon is up', popped: 'You popped. Still interested? Ask the host for it back.', asking: 'Asked the host for your balloon back…', empty: 'Your seat is closed. Talk to the host.' };
+function render(d) {
+  if (d.name) $('me').textContent = d.name;
+  if (d.role === 'g') {
+    mine = d.state; $('guest').hidden = false;
+    say(d.state, TEXT[d.state] || '');
+    $('pop').hidden = d.state !== 'up';
+    $('ask').hidden = d.state !== 'popped' && d.state !== 'asking';
+    $('ask').disabled = d.state === 'asking'; $('ask').textContent = d.state === 'asking' ? 'Waiting for the host…' : 'Ask for my balloon back';
+    if (navigator.vibrate && d.state !== lastSig) navigator.vibrate(d.state === 'up' ? 40 : [60, 40, 60]);
+    lastSig = d.state;
+  } else if (d.role === 'c') {
+    const open = !!d.pick; $('pick').hidden = !open;
+    say(open ? 'pick' : 'up', open ? 'Your pick is open' : 'You are on. The host will open your pick.');
+    if (open) $('list').innerHTML = (d.lineup || []).filter(p => p.status !== 'empty').map(p =>
+      `<div class="row"><b>${esc(p.name)}</b>${p.status === 'up' ? `<button type="button" data-id="${esc(p.id)}">Pop</button>` : '<span class="out">popped</span>'}</div>`).join('') || '<div class="tip">No one is left in the lineup.</div>';
+  } else say('up', 'You are connected');
+}
+$('list').addEventListener('click', e => { const b = e.target.closest('button[data-id]'); if (!b) return; b.disabled = true; send({ ptb: 'cpop', id: b.dataset.id }); if (navigator.vibrate) navigator.vibrate(30); });
+
+// Hold to pop: a quick tap does nothing, so a balloon can't be popped by accident.
+let holdT = null;
+const pop = $('pop');
+function holdStart(e) { e.preventDefault(); if (!connected || mine !== 'up' || holdT) return; pop.classList.add('holding');
+  holdT = setTimeout(() => { holdT = null; pop.classList.remove('holding'); send({ ptb: 'pop', t: Date.now() }); if (navigator.vibrate) navigator.vibrate([80, 40, 120]); }, 700); }
+function holdEnd() { if (holdT) { clearTimeout(holdT); holdT = null; } pop.classList.remove('holding'); }
+pop.addEventListener('pointerdown', holdStart); ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => pop.addEventListener(ev, holdEnd));
+pop.addEventListener('contextmenu', e => e.preventDefault());
+$('ask').addEventListener('click', () => { if (connected) { send({ ptb: 'ask' }); $('ask').disabled = true; } });
+
+window.addEventListener('message', e => {
+  if (e.source !== v.contentWindow || !e.data) return;
+  const a = e.data.action;
+  if (a === 'push-connection' || a === 'new-push-connection') {
+    connected = e.data.value !== false;
+    if (connected) { send({ ptb: 'hello' }); $('cam').classList.add('small'); $('camtip').hidden = true; }
+    if (!gotStatus) say('offline', connected ? 'Connected. Waiting for the show…' : 'Connection dropped. Reconnecting…');
+  }
+  const d = e.data.dataReceived;
+  if (d && d.ptb === 'status') { gotStatus = true; connected = true; $('cam').classList.add('small'); $('camtip').hidden = true; render(d); }
+});
+setInterval(() => { if (connected && !gotStatus) send({ ptb: 'hello' }); }, 1500);
+</script>
+</body>
+</html>
